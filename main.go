@@ -94,6 +94,7 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Origin") != GetEnv("ALLOWED_ORIGIN") {
 		fmt.Println(now, invalidRequestMessage)
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
 	}
 
 	// Enforce POST method.
