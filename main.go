@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"time"
+	"viper"
 )
 
 type Contact struct {
@@ -16,23 +17,46 @@ type Contact struct {
 	Message string
 }
 
-func validateParameter(r *regexp.Regexp, v string) bool {
+func GetEnv(k string) string {
+	viper.SetConfigFile(".env")
+	e := viper.ReadInConfig()
+
+	if e != nil {
+		log.Fatalf("Error reading configuration file %s", e)
+	}
+
+	v, s := viper.Get(k).(string)
+
+	if !s {
+		log.Fatalf("Invalid type assertion.")
+	}
+
+	return v
+}
+
+func GetUTCTime() time.Time {
+	location, _ := time.LoadLocation("UTC")
+	return time.Now().In(location)
+}
+
+
+func ValidateParameter(r *regexp.Regexp, v string) bool {
 	return v != "" && r.MatchString(v)
 }
 
-func handlePostRequest(w http.ResponseWriter, r *http.Request) {
+func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	// Enforce timestamps in UTC.
-	location, _ := time.LoadLocation("UTC")
-	now := time.Now().In(location)
+	invalidRequestMessage := ": Invalid Request Received."
+	now := GetUTCTime()
 
 	// Enforce POST method.
 	if r.Method != http.MethodPost {
-		fmt.Println(now, ": Invalid Request Received.")
+		fmt.Println(now, invalidRequestMessage)
 		http.Error(w, "", http.StatusBadRequest)
 		return
 	}
 
-	// Bind the form values to the Contact struct.
+	// Bind the form values to a Contact struct.
 	details := Contact{
 		Name:    r.FormValue("name"),
 		Email:   r.FormValue("email"),
@@ -44,14 +68,14 @@ func handlePostRequest(w http.ResponseWriter, r *http.Request) {
 	validEmailRegex := regexp.MustCompile(`^.+@.+\..{2,}$`)
 
 	// Validate the name and email address. Message is optional.
-	if !validateParameter(validNameRegex, details.Name) {
-		fmt.Println(now, ": Invalid Request Received.")
+	if !ValidateParameter(validNameRegex, details.Name) {
+		fmt.Println(now, invalidRequestMessage)
 		http.Error(w, "Invalid name.", http.StatusBadRequest)
 		return
 	}
 
-	if !validateParameter(validEmailRegex, details.Email) {
-		fmt.Println(now, ": Invalid Request Received.")
+	if !ValidateParameter(validEmailRegex, details.Email) {
+		fmt.Println(now, invalidRequestMessage)
 		http.Error(w, "Invalid email address.", http.StatusBadRequest)
 		return
 	}
@@ -69,6 +93,6 @@ func handlePostRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", handlePostRequest)
+	http.HandleFunc("/", HandlePostRequest)
 	log.Fatal(http.ListenAndServe(":8088", nil))
 }
