@@ -76,6 +76,12 @@ func SendEmail(n string, e string, m string) {
 }
 
 func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
+	// If the path isn't the root, 404.
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", GetEnv("ALLOWED_ORIGIN"))
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 
@@ -127,10 +133,6 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	name := sanitize.HTML(details.Name)
 	email := sanitize.HTML(details.Email)
 	message := sanitize.HTML(details.Message)
-
-	fmt.Println(name)
-	fmt.Println(email)
-	fmt.Println(message)
 
 	SendEmail(name, email, message)
 }
