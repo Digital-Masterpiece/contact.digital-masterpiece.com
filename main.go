@@ -6,9 +6,11 @@ import (
 	"github.com/kennygrant/sanitize"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
+	"golang.org/x/time/rate"
 	"log"
 	"net/http"
 	"regexp"
+	"sync"
 	"time"
 	"viper"
 )
@@ -17,6 +19,14 @@ type Contact struct {
 	Name    string
 	Email   string
 	Message string
+}
+
+var limiter = NewIPRateLimiter(1, 1)
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", HandlePostRequest)
+	log.Fatal(http.ListenAndServe(":8088", limitMiddleware(mux)))
 }
 
 func GetEnv(k string) string {
@@ -73,7 +83,7 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	// Enforce POST method.
 	if r.Method != http.MethodPost {
 		fmt.Println(now, invalidRequestMessage)
-		http.Error(w, "Invalid request method.", http.StatusBadRequest)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -111,7 +121,51 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	SendEmail(name, email, message)
 }
 
-func main() {
-	http.HandleFunc("/", HandlePostRequest)
-	log.Fatal(http.ListenAndServe(":8088", nil))
+// https://dev.to/plutov/rate-limiting-http-requests-in-go-based-on-ip-address-542g
+type IPRateLimiter struct {
+	ips map[string]*rate.Limiter
+	mu  *sync.RWMutex
+	r   rate.Limit
+	b   int
+}
+
+func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
+	return &IPRateLimiter{
+		ips: make(map[string]*rate.Limiter),
+		mu:  &sync.RWMutex{},
+		r:   r,
+		b:   b,
+	}
+}
+
+// AddIP creates a new rate limiter and adds it to the ip map using the IP address as the key.
+func (i *IPRateLimiter) AddIP(ip string) *rate.Limiter {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	limiter := rate.NewLimiter(i.r, i.b)
+	i.ips[ip] = limiter
+	return limiter
+}
+
+// GetLimiter returns the rate limiter for the provided IP address if it exists. Otherwise calls AddIP to add the IP address to the map.
+func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
+	i.mu.Lock()
+	limiter, exists := i.ips[ip]
+	if !exists {
+		i.mu.Unlock()
+		return i.AddIP(ip)
+	}
+	i.mu.Unlock()
+	return limiter
+}
+
+func limitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		limiter := limiter.GetLimiter(r.RemoteAddr)
+		if !limiter.Allow() {
+			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
