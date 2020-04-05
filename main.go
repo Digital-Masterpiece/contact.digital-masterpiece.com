@@ -4,6 +4,8 @@ package main
 import (
 	"fmt"
 	"github.com/kennygrant/sanitize"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"log"
 	"net/http"
 	"regexp"
@@ -39,9 +41,28 @@ func GetUTCTime() time.Time {
 	return time.Now().In(location)
 }
 
-
 func ValidateParameter(r *regexp.Regexp, v string) bool {
 	return v != "" && r.MatchString(v)
+}
+
+func SendEmail(n string, e string, m string) {
+	// https://app.sendgrid.com/guide/integrate
+	from := mail.NewEmail("Digital Masterpiece", "noreply@digital-masterpiece.com")
+	subject := "Contact Form Inquiry"
+	to := mail.NewEmail(GetEnv("RECIPIENT_NAME"), GetEnv("RECIPIENT_EMAIL"))
+	plainTextContent := fmt.Sprintf("Name: %s\r\n\r\nEmail: %s\r\n\r\nMessage: %s", n, e, m)
+	htmlContent := fmt.Sprintf("Name: %s<br>Email: %s<br>Message: %s", n, e, m)
+	message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
+
+	client := sendgrid.NewSendClient(GetEnv("SENDGRID_API_KEY"))
+
+	response, err := client.Send(message)
+	if err != nil {
+		log.Println(err)
+	} else {
+		fmt.Println(response.StatusCode)
+		fmt.Println(response.Headers)
+	}
 }
 
 func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +73,7 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	// Enforce POST method.
 	if r.Method != http.MethodPost {
 		fmt.Println(now, invalidRequestMessage)
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, "Invalid request method.", http.StatusBadRequest)
 		return
 	}
 
@@ -80,16 +101,14 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println(now, ": Valid Request Received!")
+
 	// Sanitize the inputs.
 	name := sanitize.HTML(details.Name)
 	email := sanitize.HTML(details.Email)
 	message := sanitize.HTML(details.Message)
 
-	fmt.Println(name)
-	fmt.Println(email)
-	fmt.Println(message)
-
-	fmt.Println(now, ": Valid Request Received!")
+	SendEmail(name, email, message)
 }
 
 func main() {
