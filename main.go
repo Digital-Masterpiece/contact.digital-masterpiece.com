@@ -4,6 +4,8 @@ package main
 import (
 	"fmt"
 	"github.com/kennygrant/sanitize"
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"golang.org/x/time/rate"
 	"log"
 	"net/http"
@@ -53,25 +55,25 @@ func ValidateParameter(r *regexp.Regexp, v string) bool {
 	return v != "" && r.MatchString(v)
 }
 
-//func SendEmail(n string, e string, m string) {
-//	// https://app.sendgrid.com/guide/integrate
-//	from := mail.NewEmail("Digital Masterpiece", "noreply@digital-masterpiece.com")
-//	subject := "Contact Form Inquiry"
-//	to := mail.NewEmail(GetEnv("RECIPIENT_NAME"), GetEnv("RECIPIENT_EMAIL"))
-//	plainTextContent := fmt.Sprintf("Name: %s\r\n\r\nEmail: %s\r\n\r\nMessage: %s", n, e, m)
-//	htmlContent := fmt.Sprintf("Name: %s<br>Email: %s<br>Message: %s", n, e, m)
-//	message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
-//
-//	client := sendgrid.NewSendClient(GetEnv("SENDGRID_API_KEY"))
-//
-//	response, err := client.Send(message)
-//	if err != nil {
-//		log.Println(err)
-//	} else {
-//		fmt.Println(response.StatusCode)
-//		fmt.Println(response.Headers)
-//	}
-//}
+func SendEmail(n string, e string, m string) {
+	// https://app.sendgrid.com/guide/integrate
+	from := mail.NewEmail("Digital Masterpiece", "noreply@digital-masterpiece.com")
+	subject := "Contact Form Inquiry"
+	to := mail.NewEmail(GetEnv("RECIPIENT_NAME"), GetEnv("RECIPIENT_EMAIL"))
+	plainTextContent := fmt.Sprintf("Name: %s\r\n\r\nEmail: %s\r\n\r\nMessage: %s", n, e, m)
+	htmlContent := fmt.Sprintf("Name: %s<br>Email: %s<br>Message: %s", n, e, m)
+	message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
+
+	client := sendgrid.NewSendClient(GetEnv("SENDGRID_API_KEY"))
+
+	response, err := client.Send(message)
+	if err != nil {
+		log.Println(err)
+	} else {
+		fmt.Println(response.StatusCode)
+		fmt.Println(response.Headers)
+	}
+}
 
 func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", GetEnv("ALLOWED_ORIGIN"))
@@ -130,7 +132,7 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(email)
 	fmt.Println(message)
 
-	//SendEmail(name, email, message)
+	SendEmail(name, email, message)
 }
 
 // https://dev.to/plutov/rate-limiting-http-requests-in-go-based-on-ip-address-542g
