@@ -26,7 +26,7 @@ var limiter = NewIPRateLimiter(1, 1)
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", HandlePostRequest)
-	log.Fatal(http.ListenAndServe(":8088", limitMiddleware(mux)))
+	log.Fatal(http.ListenAndServe(":8080", limitMiddleware(mux)))
 }
 
 func GetEnv(k string) string {
