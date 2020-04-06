@@ -1,0 +1,7 @@
+runtime: go112
+
+env_variables:
+  SENDGRID_API_KEY: ""
+  RECIPIENT_NAME: ""
+  RECIPIENT_EMAIL: ""
+  ALLOWED_ORIGIN: "*"

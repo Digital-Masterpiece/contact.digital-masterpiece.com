@@ -9,6 +9,7 @@ import (
 	"golang.org/x/time/rate"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"sync"
 	"time"
@@ -30,17 +31,21 @@ func main() {
 }
 
 func GetEnv(k string) string {
-	viper.SetConfigFile(".env")
-	e := viper.ReadInConfig()
+	if os.Getenv("APP_ENV") != "local" {
+		v := os.Getenv(k)
+	} else {
+		viper.SetConfigFile(".env")
+		e := viper.ReadInConfig()
 
-	if e != nil {
-		log.Fatalf("Error reading configuration file %s", e)
-	}
+		if e != nil {
+			log.Fatalf("Error reading configuration file %s", e)
+		}
 
-	v, s := viper.Get(k).(string)
+		v, s := viper.Get(k).(string)
 
-	if !s {
-		log.Fatalf("Invalid type assertion.")
+		if !s {
+			log.Fatalf("Invalid type assertion.")
+		}
 	}
 
 	return v

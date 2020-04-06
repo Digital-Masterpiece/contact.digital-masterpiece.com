@@ -12,8 +12,10 @@
 # below:
 .git
 .gitignore
-.env.example
 .idea
+.github
+.env.example
+.app.example.yaml
 
 # Binaries for programs and plugins
 *.exe

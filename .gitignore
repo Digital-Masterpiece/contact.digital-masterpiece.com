@@ -1,4 +1,5 @@
 .idea
 main
-.env
 contact.digital-masterpiece.com
+.env
+app.yaml
