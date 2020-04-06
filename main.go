@@ -32,7 +32,7 @@ func main() {
 
 func GetEnv(k string) string {
 	if os.Getenv("APP_ENV") != "local" {
-		v := os.Getenv(k)
+		return os.Getenv(k)
 	} else {
 		viper.SetConfigFile(".env")
 		e := viper.ReadInConfig()
@@ -46,9 +46,9 @@ func GetEnv(k string) string {
 		if !s {
 			log.Fatalf("Invalid type assertion.")
 		}
-	}
 
-	return v
+		return v
+	}
 }
 
 func GetUTCTime() time.Time {
