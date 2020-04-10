@@ -7,6 +7,7 @@ import (
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"golang.org/x/time/rate"
+	"gopkg.in/ezzarghili/recaptcha-go.v4"
 	"log"
 	"net/http"
 	"os"
@@ -71,12 +72,11 @@ func SendEmail(n string, e string, m string) {
 
 	client := sendgrid.NewSendClient(GetEnv("SENDGRID_API_KEY"))
 
-	response, err := client.Send(message)
+	_, err := client.Send(message)
 	if err != nil {
 		log.Println(err)
 	} else {
-		fmt.Println(response.StatusCode)
-		fmt.Println(response.Headers)
+		fmt.Println("E-mail sent successfully!")
 	}
 }
 
@@ -87,25 +87,40 @@ func HandlePostRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Access-Control-Allow-Origin", GetEnv("ALLOWED_ORIGIN"))
-	w.Header().Set("Access-Control-Allow-Methods", "POST")
-
 	// Enforce timestamps in UTC.
 	invalidRequestMessage := ": Invalid Request Received."
 	now := GetUTCTime()
 
-	fmt.Println(r.Header.Get("Origin"))
+	w.Header().Set("Access-Control-Allow-Origin", GetEnv("ALLOWED_ORIGIN"))
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
 
-	if r.Header.Get("Origin") != GetEnv("ALLOWED_ORIGIN") {
-		fmt.Println(now, invalidRequestMessage)
-		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		return
+	// Check if the config allows CORS.
+	if GetEnv("ALLOWED_ORIGIN") != "*" {
+		if r.Header.Get("Origin") != GetEnv("ALLOWED_ORIGIN") {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
 	}
 
 	// Enforce POST method.
 	if r.Method != http.MethodPost {
-		fmt.Println(now, invalidRequestMessage)
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+
+	// https://github.com/ezzarghili/recaptcha-go
+	captcha, captchaError := recaptcha.NewReCAPTCHA(GetEnv("RECAPTCHA_SECRET"), recaptcha.V3, 10*time.Second)
+
+	if captchaError != nil {
+		fmt.Println(captchaError)
+		return
+	}
+	fmt.Println(r.FormValue("token"))
+	verificationError := captcha.Verify(r.FormValue("token"))
+
+	if verificationError != nil {
+		fmt.Println(verificationError)
+		http.Error(w, "Invalid reCAPTCHA response.", http.StatusBadRequest)
 		return
 	}
 
